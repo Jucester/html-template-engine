@@ -1,21 +1,8 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
-
 // Notes on #derive
 // #[derive] nos permite usar implementaciones por defecto existentes en algunas partes que necesitemos
 // PartialEq nos permite comparar los content types. Y debug nos imprime los valores en la consola.
+
+use std::collections::HashMap;
 
 #[derive(PartialEq, Debug)]
 pub enum TagType {
@@ -32,13 +19,13 @@ pub struct ExpressionData {
 
 #[derive(PartialEq, Debug)]
 pub enum ContentType {
-    Literal(string),
+    Literal(String),
     TemplateVariable(ExpressionData),
     Tag(TagType),
     Unrecognized,
 }
 
-fn get_content_type(input_line: &str) -> ContentType {
+pub fn get_content_type(input_line: &str) -> ContentType {
     let is_tag_expression = check_matching_pair(&input_line, "{%", "%}");
 
     let is_for_tag = (check_symbol_string(&input_line, "for")
@@ -47,7 +34,7 @@ fn get_content_type(input_line: &str) -> ContentType {
 
     let is_if_tag =
         check_symbol_string(&input_line, "if") || check_symbol_string(&input_line, "endif");
-    
+
     let is_template_variable = check_matching_pair(&input_line, "{{", "}}");
     let return_val;
 
@@ -84,7 +71,7 @@ pub fn get_expression_data(input_line: &str) -> ExpressionData {
     ExpressionData {
         head: Some(head),
         variable: variable,
-        tail: Some(tail)
+        tail: Some(tail),
     }
 }
 
@@ -103,69 +90,89 @@ pub fn get_index_for_symbol(input: &str, symbol: char) -> (bool, usize) {
     (does_exist, index)
 }
 
+pub fn generate_html(
+    content: ExpressionData,
+    contenxt: HashMap<String, String>
+) -> String {
+    let mut html = String::new();
+
+    if let Some(h) = content.head {
+        html.push_str(&h);
+    }
+
+    if let Some(val) = contenxt.get(&content.variable) {
+        html.push_str(&val);
+    }
+
+    if let Some(t) = content.tail {
+        html.push_str(&t);
+    }
+
+    html
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-}
 
-#[test]
-fn check_symbol_string_test() {
-    assert_eq!(true, check_symbol_string("{{Hello}}", "{{"));
-}
+    #[test]
+    fn check_symbol_string_test() {
+        assert_eq!(true, check_symbol_string("{{Hello}}", "{{"));
+    }
 
-#[test]
-fn check_matching_pair_test() {
-    assert_eq!(true, check_matching_pair("{{Hello}}", "{{", "}}"));
-}
+    #[test]
+    fn check_matching_pair_test() {
+        assert_eq!(true, check_matching_pair("{{Hello}}", "{{", "}}"));
+    }
 
-#[test]
-fn get_index_for_symbol_test() {
-    assert_eq!((true, 3), get_index_for_symbol("Hi {name}, welcome", '{'))
-}
+    #[test]
+    fn get_index_for_symbol_test() {
+        assert_eq!((true, 3), get_index_for_symbol("Hi {name}, welcome", '{'))
+    }
 
-#[test]
-fn check_expression_data_test() {
-    let expression = ExpressionData {
-        head: Some("Hi ".to_string()),
-        variable: "name".to_string(),
-        tail: Some(", welcome".to_string()),
-    };
-    assert_eq!(expression, get_expression_data("Hi {{name}} ,welcome"));
-}
+    #[test]
+    fn check_expression_data_test() {
+        let expression = ExpressionData {
+            head: Some("Hi ".to_string()),
+            variable: "name".to_string(),
+            tail: Some(", welcome".to_string()),
+        };
+        assert_eq!(expression, get_expression_data("Hi {{name}} ,welcome"));
+    }
 
-#[test]
-fn check_literal_test() {
-    let s = "<h1>Hello world </h1>";
-    assert_eq!(ContentType::Literal(s.to_string()), get_content_type(s))
-}
+    #[test]
+    fn check_literal_test() {
+        let s = "<h1>Hello world </h1>";
+        assert_eq!(ContentType::Literal(s.to_string()), get_content_type(s))
+    }
 
-#[test]
-fn check_template_var_test() {
-    let content = ExpressionData {
-        head: Some("Hi ".to_string()),
-        variable: "name".to_string(),
-        tail: Some(" ,welcome".to_string()),
-    };
+    #[test]
+    fn check_template_var_test() {
+        let content = ExpressionData {
+            head: Some("Hi ".to_string()),
+            variable: "name".to_string(),
+            tail: Some(" ,welcome".to_string()),
+        };
 
-    assert_eq!(
-        ContentType::TemplateVariable(content),
-        get_content_type("Hi {{name}} ,welcome")
-    );
-}
+        assert_eq!(
+            ContentType::TemplateVariable(content),
+            get_content_type("Hi {{name}} ,welcome")
+        );
+    }
 
-#[test]
-fn check_for_tag_test() {
-    assert_eq!(
-        ContentType::Tag(TagType::ForTag),
-        get_content_type("{% for name in names %} ,welcome")
-    );
-}
+    #[test]
+    fn check_for_tag_test() {
+        assert_eq!(
+            ContentType::Tag(TagType::ForTag),
+            get_content_type("{% for name in names %} ,welcome")
+        );
+    }
 
-#[test]
-fn check_if_tag_test() {
-    assert_eq!(
-        ContentType::Tag(TagType::IfTag),
-        get_content_type("{% if name === 'Bob' %}")
-    );
+    #[test]
+    fn check_if_tag_test() {
+        assert_eq!(
+            ContentType::Tag(TagType::IfTag),
+            get_content_type("{% if name === 'Bob' %}")
+        );
+    }
 }
